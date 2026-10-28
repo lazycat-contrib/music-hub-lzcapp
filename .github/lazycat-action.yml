@@ -1,0 +1,42 @@
+version: 1
+
+project:
+  root: .
+  build_config: lzc-build.yml
+  package_file: package.yml
+  output: dist/application.lpk
+  target_arch: amd64
+
+update:
+  strategy: publish
+  allow_downgrade: false
+  version_source:
+    type: image
+    image: music-hub
+
+build:
+  toolchains: []
+  run_buildscript: false
+
+images:
+  - id: music-hub
+    target: service
+    service: hub
+    source: docker.io/ioaoleo/music-hub
+    channel: stable
+    sort: semver
+    tag_regex: '^\d+\.\d+\.\d+$'
+    max_tags: 50000
+    max_matching_tags: 50000
+    delivery:
+      mode: mirror
+      require_digest_match: true
+
+stores:
+  official:
+    enabled: false
+  private:
+    enabled: true
+    skip_if_version_exists: true
+    name: Music Hub
+    summary: 音乐库与下载任务聚合中心，聚合五大平台搜索与下载

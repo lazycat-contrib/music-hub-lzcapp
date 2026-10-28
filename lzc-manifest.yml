@@ -1,0 +1,82 @@
+application:
+  subdomain: music-hub
+  multi_instance: false
+  public_path:
+    - /
+  upstreams:
+    - location: /
+      backend: http://hub:8000/
+  injects:
+    # 三阶段免密登录：首次创建管理员时捕获凭据，之后自动填充
+    - id: capture-credentials
+      on: request
+      auth_required: false
+      when:
+        - /api/setup
+        - /api/login
+        - /api/auth
+        - /login
+      do: |
+        const payload = ctx.body.getJSON();
+        const user = payload && (payload.username || payload.user || payload.account);
+        if (user && payload.password) {
+          ctx.flow.set("pending_user", String(user));
+          ctx.flow.set("pending_pass", String(payload.password));
+        }
+    - id: persist-credentials
+      on: response
+      auth_required: false
+      when:
+        - /api/setup
+        - /api/login
+        - /api/auth
+        - /login
+      do: |
+        if (ctx.status >= 200 && ctx.status < 300) {
+          const user = ctx.flow.get("pending_user");
+          const pass = ctx.flow.get("pending_pass");
+          if (user && pass) {
+            ctx.persist.set("saved_user", user);
+            ctx.persist.set("saved_pass", pass);
+          }
+        }
+    - id: autofill-login
+      when:
+        - /
+      do:
+        - src: builtin://simple-inject-password
+          params:
+            user:
+              $persist: saved_user
+            password:
+              $persist: saved_pass
+    - id: open-save-chooser
+      on: browser
+      when:
+        - /*
+      do:
+        - src: file:///lzcapp/pkg/content/lazycat-injects/lzc-file-chooser-inject.js
+
+services:
+  hub:
+    # upstream: docker.io/ioaoleo/music-hub:1.0.0
+    image: docker.1ms.run/ioaoleo/music-hub:1.0.0
+    environment:
+      - HUB_AUTH_REQUIRED=true
+      - HUB_COOKIE_SECURE=false
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8000/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    binds:
+      - /lzcapp/var/tasks:/data/tasks
+      - /lzcapp/var/engine:/data/engine
+      - /lzcapp/var/music:/music
+
+usage: |
+  Music Hub 聚合网易云、QQ 音乐、酷我、酷狗、咪咕五大平台的搜索与下载，支持分类轮换歌库与批量任务。
+  首次打开需创建管理员账号（免密登录会记住首次凭据）。下载的音乐保存在应用数据目录 music 下。
+  部分平台内容需要扫码登录或填写 Cookie 后才能下载。

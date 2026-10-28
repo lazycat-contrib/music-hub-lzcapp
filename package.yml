@@ -1,0 +1,18 @@
+package: community.lazycat.app.music-hub
+version: 1.0.0
+name: Music Hub
+description: Unified music library and download task hub with category rotation, aggregating multiple music platforms
+min_os_version: "1.5.0"
+homepage: https://github.com/io-aoleo/music-hub
+author: io-aoleo
+license: AGPL-3.0
+permissions:
+  required:
+    - net.internet
+locales:
+  zh:
+    name: Music Hub
+    description: 音乐库与下载任务聚合中心，聚合网易云/QQ 音乐/酷我/酷狗/咪咕五大平台搜索与下载
+  en:
+    name: Music Hub
+    description: Unified music library and download task hub with category rotation
